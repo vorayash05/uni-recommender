@@ -1,29 +1,39 @@
+import streamlit as st
 import openai
 import os
 from dotenv import load_dotenv
 
+# Load environment variables
+load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
+# --- System Prompt (Improved Version) ---
 system_prompt = """
-You are an expert international higher education counselor with deep knowledge of master's programs around the world. Your job is to match students to the most realistic and well-suited graduate programs based on their actual academic background, goals, budget, and preferences.
+You are a world-class international education counselor helping Indian students choose master's programs abroad.
 
-Using the student profile provided, recommend **exactly 5 real, verifiable university + program combinations** that align with their goals and constraints.
+You are given a student profile, and your job is to recommend exactly 5 real, verifiable university + program combinations.
 
-Here are your rules:
+Every recommendation MUST be thoughtful and counselor-level — realistic, specific, and research-backed.
 
-1. **Do not recommend unrealistic or generic top-tier programs** (e.g., Stanford, MIT, Oxford) unless the student’s academic profile clearly qualifies.
-2. Each recommendation MUST include:
+### YOUR RULES:
+
+1. DO NOT suggest Ivy League / elite schools unless the profile *clearly qualifies*. Avoid generic top-tiers like Stanford, MIT, unless well-justified.
+
+2. Each of your 5 program recommendations must include:
    - **University Name + Program Name**
-   - **Why it's a good fit** (tie directly to GPA, stream, work experience, goals, budget, etc.)
-   - **Course structure** (duration, specialization areas, internships, capstone, etc.)
-   - **Tuition + estimated living costs** (in USD or local currency as appropriate)
+   - **Why it's a Good Fit:** Connect to GPA, undergrad stream, work ex, career goal, extracurriculars, budget, etc.
+   - **Course Structure:** Duration, key subjects, optional tracks, capstone/internship/research components.
+   - **Tuition + Living Costs:** Use accurate 2023/2024 numbers, mention currency. Flag if above or below budget.
    - **City + Country**
-   - **Post-graduate work opportunities** (stay-back visas, OPT/PGWP, typical employers or industries)
-3. **Do not hallucinate** program names, structures, or costs. Use real data from 2023–2024 if available.
-4. Make the tone sound like a seasoned, confident advisor—not like a Google search result or ChatGPT default.
-5. Every part of your response should be thoughtful, specific, and useful enough that a human counselor could send it directly to a student without edits.
+   - **Post-Graduation Options:** Visa duration, job market strength, industries hiring grads, typical job roles.
+   - **ROI Insight:** Typical graduate salary (if verifiable), payback time, or salary vs tuition comparison.
+   - **Alumni Outcomes:** Name real companies, roles, or platforms where past graduates have worked. If not available, say “No verified data.”
 
-Format strictly like this for each recommendation:
+3. Maintain a professional tone — like a seasoned counselor speaking to a serious student. No fluff. No hallucination. Be honest if unsure.
+
+4. All information should be factually verifiable and useful for decision-making. No summarizing, no generic benefits.
+
+FORMAT STRICTLY LIKE THIS:
 
 1. **University Name - Program Name**
    - *Why a Good Fit:* ...
@@ -31,78 +41,85 @@ Format strictly like this for each recommendation:
    - *Tuition + Living Costs:* ...
    - *Country + City:* ...
    - *Post-Graduation Options:* ...
+   - *ROI Insight:* ...
+   - *Alumni Outcomes:* ...
 
-If you are unsure or can't verify something, say so. Prioritize transparency over guesswork.
+You are not a chatbot — you are a senior counselor at a premium global education consultancy. Be precise, data-driven, and transparent.
 """
 
-# --- Input function ---
-def get_student_input():
-    print("Enter student details:")
-    data = {}
-    data['Name'] = input("Name: ")
-    data['Current city'] = input("Current city: ")
-    data['DOB'] = input("Date of Birth (YYYY-MM-DD): ")
-    data['XII completion year'] = input("Year of XIIth grade completion: ")
-    data['XII percentage'] = input("XII percentage: ")
-    data['Undergrad status'] = input("Status of undergrad (completed/ongoing): ")
-    data['Stream'] = input("Stream pursuing/pursued: ")
-    data['Undergrad completion year'] = input("Year of undergrad completion (or expected): ")
-    data['CGPA'] = input("CGPA or final GPA: ")
-    data['Backlogs'] = input("Any backlogs or KTs? (yes/no): ")
-    data['Gap years'] = input("Gap years, if any: ")
-    data['Work experience'] = input("Number of years of work experience: ")
-    data['Career goals'] = input("Specific career goals: ")
-    data['Financial concern'] = input("Are finances a concern? (yes/no): ")
-    data['Post grad stay'] = input("Do you plan to stay in the country post graduation? (yes/no): ")
-    data['Relevant experience'] = input("Do you have relevant work experience in your chosen field? (yes/no): ")
-    data['Family abroad'] = input("Do you have family abroad? (yes/no): ")
-    data['Switch courses'] = input("Would you consider switching courses? (yes/no): ")
-    data['Extracurriculars or research'] = input("Do you prefer universities with strong extracurricular or research opportunities? (yes/no): ")
-    data['Cultural familiarity'] = input("How familiar are you with the country's culture and academic environment? ")
-    data['Budget'] = input("Budget (in USD/year): ")
-    data['Interested country'] = input("Country you're interested in: ")
-    return data
+# --- Streamlit UI ---
+st.set_page_config(page_title="University Recommender", layout="wide")
+st.title("🎓 GradGuide – AI-Powered University Recommender")
 
-def build_prompt(student_data):
+with st.form("student_form"):
+    st.subheader("📋 Enter Student Profile")
+
+    name = st.text_input("Name")
+    city = st.text_input("Current City")
+    dob = st.text_input("Date of Birth (YYYY-MM-DD)")
+    xii_year = st.text_input("XII Completion Year")
+    xii_percent = st.text_input("XII Percentage")
+    ug_status = st.selectbox("Undergrad Status", ["Completed", "Ongoing"])
+    stream = st.text_input("UG Stream")
+    grad_year = st.text_input("UG Completion Year")
+    cgpa = st.text_input("CGPA")
+    backlogs = st.selectbox("Any Backlogs?", ["No", "Yes"])
+    gaps = st.text_input("Gap Years (if any)")
+    work_exp = st.text_input("Work Experience (in years)")
+    goals = st.text_area("Career Goals")
+    finance = st.selectbox("Is Budget a Concern?", ["Yes", "No"])
+    post_stay = st.selectbox("Stay in Country Post Graduation?", ["Yes", "No"])
+    relevant_exp = st.selectbox("Relevant Work Exp in Field?", ["Yes", "No"])
+    family_abroad = st.selectbox("Family Abroad?", ["Yes", "No"])
+    switch_course = st.selectbox("Open to Switching Courses?", ["Yes", "No"])
+    extracurriculars = st.selectbox("Strong in Research/ECAs?", ["Yes", "No"])
+    culture = st.text_input("Familiarity with Foreign Culture")
+    budget = st.text_input("Annual Budget (USD)")
+    country = st.text_input("Interested Country")
+
+    submitted = st.form_submit_button("🎯 Generate Recommendations")
+
+if submitted:
+    # Build user prompt
     user_prompt = "Student Profile:\n"
-    for key, value in student_data.items():
-        user_prompt += f"{key}: {value}\n"
+    fields = {
+        "Name": name, "Current city": city, "DOB": dob, "XII completion year": xii_year,
+        "XII percentage": xii_percent, "Undergrad status": ug_status, "Stream": stream,
+        "Undergrad completion year": grad_year, "CGPA": cgpa, "Backlogs": backlogs,
+        "Gap years": gaps, "Work experience": work_exp, "Career goals": goals,
+        "Financial concern": finance, "Post grad stay": post_stay,
+        "Relevant experience": relevant_exp, "Family abroad": family_abroad,
+        "Switch courses": switch_course, "Extracurriculars or research": extracurriculars,
+        "Cultural familiarity": culture, "Budget": budget, "Interested country": country
+    }
+
+    for k, v in fields.items():
+        user_prompt += f"{k}: {v}\n"
     user_prompt += "\nBased on this profile, suggest 5 realistic university programs.\n"
-    return user_prompt
 
-def main():
-    student_data = get_student_input()
-    user_prompt = build_prompt(student_data)
+    # GPT Call
+    st.info("Generating recommendations... please wait.")
+    try:
+        response = openai.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.4
+        )
+        result = response.choices[0].message.content
 
-    print("\nGenerating recommendations... please wait.\n")
+        st.success("✅ Recommendations generated!")
+        st.markdown("### 🎓 Recommended Universities")
+        st.markdown(result)
 
-    response = openai.chat.completions.create(
-        model="gpt-4",
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
-        ],
-        temperature=0.4
-    )
+        st.download_button(
+            label="📄 Download as TXT",
+            data=result,
+            file_name=f"{name}_recommendations.txt",
+            mime="text/plain"
+        )
 
-    result = response.choices[0].message.content
-    usage = response.usage
-
-    print("=== University Recommendations ===\n")
-    print(result)
-
-    print("\n=== Token Usage Summary ===")
-    print(f"Prompt tokens: {usage.prompt_tokens}")
-    print(f"Completion tokens: {usage.completion_tokens}")
-    print(f"Total tokens: {usage.total_tokens}")
-
-    # --- Estimate cost (GPT-4-8K pricing as of 2024) ---
-    input_cost_per_1k = 0.03   # $0.03 per 1K prompt tokens
-    output_cost_per_1k = 0.06  # $0.06 per 1K completion tokens
-
-    cost = (usage.prompt_tokens / 1000 * input_cost_per_1k) + (usage.completion_tokens / 1000 * output_cost_per_1k)
-    print(f"Estimated cost: ${cost:.4f} USD")
-
-# --- Entry point ---
-if __name__ == "__main__":
-    main()
+    except Exception as e:
+        st.error(f"❌ Error: {str(e)}")
